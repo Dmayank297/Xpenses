@@ -5,7 +5,9 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
+import com.example.xpenses.models.DailyExpense
 import com.example.xpenses.models.Expenses
+import com.example.xpenses.models.MonthlyExpense
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -28,6 +30,12 @@ interface ExpensesDao {
 
     @Query("SELECT COALESCE(SUM(amount), 0.0) FROM expenses WHERE type = 'DEBIT'")
     fun getTotalDebit(): Flow<Double>
+
+    @Query("SELECT strftime('%w', date) as dayOfWeek, COALESCE(SUM(amount), 0.0) as total FROM expenses GROUP BY dayOfWeek")
+    fun getDailyExpenses(): Flow<List<DailyExpense>>
+
+    @Query("SELECT strftime('%m', date) as month, COALESCE(SUM(amount), 0.0) as total FROM expenses GROUP BY month")
+    fun getMonthlyExpenses(): Flow<List<MonthlyExpense>>
 
     @Insert
     suspend fun insertExpense(expense: Expenses)

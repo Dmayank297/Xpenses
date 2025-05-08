@@ -1,5 +1,6 @@
 package com.example.xpenses.ui.screens
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,28 +24,39 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.xpenses.R
 import com.example.xpenses.Screen
 import com.example.xpenses.bottomNavItems
 import com.example.xpenses.models.TransactionType
+import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.data.PieData
+import com.github.mikephil.charting.data.PieDataSet
+import com.github.mikephil.charting.data.PieEntry
+import com.github.mikephil.charting.formatter.PercentFormatter
+
 
 @Composable
 fun MainPage(
     viewModel: MainPageViewModel = hiltViewModel()
 ) {
     val currentScreen = remember { viewModel.currentBottomScreen }
-    val expenses = viewModel.expensesList.collectAsState().value
+
 
     Scaffold(
         bottomBar = {
@@ -144,6 +156,7 @@ fun HeaderSection() {
     }
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun CreditCardSection(
     viewModel: MainPageViewModel = hiltViewModel()
@@ -237,11 +250,23 @@ fun CreditCardSection(
 }
 
 @Composable
-fun AnalyticsSection() {
+fun AnalyticsSection(
+    viewModel: MainPageViewModel = hiltViewModel()
+) {
+    var isDailyView by remember { mutableStateOf(true) }
+    val dailyExpenses = viewModel.dailyExpenses.collectAsState().value
+    val monthlyExpenses = viewModel.monthlyExpenses.collectAsState().value
+    val data = if (isDailyView) dailyExpenses else monthlyExpenses
+    val labels = if (isDailyView) {
+        listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    } else {
+        listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = Color(ContextCompat.getColor(LocalContext.current, R.color.card_background)))
     ) {
         Column(
             modifier = Modifier
@@ -260,14 +285,14 @@ fun AnalyticsSection() {
                     Icon(
                         painter = painterResource(android.R.drawable.ic_menu_info_details),
                         contentDescription = null,
-                        tint = Color(0xFFFFA500),
+                        tint = Color(ContextCompat.getColor(LocalContext.current, R.color.accent_orange)),
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
                         text = "Analytics",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.Black
+                        color = Color(ContextCompat.getColor(LocalContext.current, R.color.text_black))
                     )
                 }
                 Row(
@@ -275,49 +300,108 @@ fun AnalyticsSection() {
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "DAILY",
+                        text = if (isDailyView) "DAILY" else "MONTHLY",
                         fontSize = 12.sp,
-                        color = Color.Black
+                        color = Color(ContextCompat.getColor(LocalContext.current, R.color.text_black)),
+                        modifier = Modifier.clickable { isDailyView = !isDailyView }
                     )
                     Icon(
                         painter = painterResource(android.R.drawable.ic_menu_more),
                         contentDescription = null,
-                        tint = Color.Black,
+                        tint = Color(ContextCompat.getColor(LocalContext.current, R.color.text_black)),
                         modifier = Modifier.size(16.dp)
                     )
                 }
             }
-            Box(
+            DonutChart(
+                data = data,
+                labels = labels,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp)
-                    .background(Color(0xFFF5F5F5)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "[Graph Placeholder]",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
+                    .height(200.dp)
+                    .padding(vertical = 16.dp)
+            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "Sun", fontSize = 12.sp, color = Color.Gray)
-                Text(text = "Mon", fontSize = 12.sp, color = Color.Gray)
-                Text(text = "Tue", fontSize = 12.sp, color = Color.Gray)
-                Text(text = "Wed", fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.Bold)
-                Text(text = "Thu", fontSize = 12.sp, color = Color.Gray)
-                Text(text = "Fri", fontSize = 12.sp, color = Color.Gray)
-                Text(text = "Sat", fontSize = 12.sp, color = Color.Gray)
+                labels.forEachIndexed { index, label ->
+                    Text(
+                        text = label,
+                        fontSize = 12.sp,
+                        color = if (isDailyView && label == "Wed") {
+                            Color(ContextCompat.getColor(LocalContext.current, R.color.text_black))
+                        } else {
+                            Color(ContextCompat.getColor(LocalContext.current, R.color.text_gray))
+                        },
+                        fontWeight = if (isDailyView && label == "Wed") FontWeight.Bold else FontWeight.Normal
+                    )
+                }
             }
         }
     }
 }
 
+@Composable
+fun DonutChart(
+    data: List<Double>,
+    labels: List<String>,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    AndroidView(
+        modifier = modifier.background(Color(ContextCompat.getColor(context, R.color.chart_background))),
+        factory = { ctx ->
+            PieChart(ctx).apply {
+                setUsePercentValues(true)
+                description.isEnabled = false
+                isDrawHoleEnabled = true
+                holeRadius = 50f
+                transparentCircleRadius = 55f
+                setHoleColor(ContextCompat.getColor(ctx, R.color.chart_hole))
+                legend.isEnabled = false
+                setEntryLabelColor(ContextCompat.getColor(ctx, R.color.chart_label))
+                setEntryLabelTextSize(12f)
+                setDrawEntryLabels(false) // Labels inside segments off for cleaner look
+            }
+        },
+        update = { chart ->
+            val entries = data.mapIndexed { index, value ->
+                PieEntry(value.toFloat(), labels.getOrElse(index) { "" })
+            }.filter { it.value > 0 } // Exclude zero values for cleaner chart
+
+            val dataSet = PieDataSet(entries, "Expenses").apply {
+                colors = listOf(
+                    ContextCompat.getColor(context, R.color.chart_green),
+                    ContextCompat.getColor(context, R.color.chart_orange),
+                    ContextCompat.getColor(context, R.color.chart_tomato),
+                    ContextCompat.getColor(context, R.color.chart_steel_blue),
+                    ContextCompat.getColor(context, R.color.chart_gold),
+                    ContextCompat.getColor(context, R.color.chart_slate_blue),
+                    ContextCompat.getColor(context, R.color.chart_orange_red),
+                    ContextCompat.getColor(context, R.color.chart_light_sea_green),
+                    ContextCompat.getColor(context, R.color.chart_dark_orchid),
+                    ContextCompat.getColor(context, R.color.chart_forest_green),
+                    ContextCompat.getColor(context, R.color.chart_crimson),
+                    ContextCompat.getColor(context, R.color.chart_dark_turquoise)
+                )
+                valueTextSize = 12f
+                valueTextColor = ContextCompat.getColor(context, R.color.chart_value_text)
+                valueFormatter = PercentFormatter(chart)
+                sliceSpace = 2f
+            }
+
+            val pieData = PieData(dataSet)
+            chart.data = pieData
+            chart.animateY(1000)
+            chart.invalidate()
+        }
+    )
+}
+
+@SuppressLint("DefaultLocale")
 @Composable
 fun RecentActivitySection(
     onViewAllClick: () -> Unit,
@@ -456,9 +540,3 @@ fun BottomAppBar(
     }
 }
 
-
-@Preview
-@Composable
-private fun MainPagePreview() {
-    MainPage()
-}

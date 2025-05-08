@@ -51,6 +51,40 @@ class MainPageViewModel @Inject constructor(
         initialValue = 0.0
     )
 
+    val dailyExpenses: StateFlow<List<Double>> = expenseDatabase.getDailyExpenses().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    ).map { dailyExpenses ->
+        val totals = MutableList(7) { 0.0 } // Sun (0) to Sat (6)
+        dailyExpenses.forEach { expense ->
+            val dayIndex = expense.dayOfWeek.toInt()
+            totals[dayIndex] = expense.total
+        }
+        totals
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = List(7) { 0.0 }
+    )
+
+    val monthlyExpenses: StateFlow<List<Double>> = expenseDatabase.getMonthlyExpenses().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    ).map { monthlyExpenses ->
+        val totals = MutableList(12) { 0.0 }
+        monthlyExpenses.forEach { expense ->
+            val monthIndex = expense.month.toInt() - 1
+            totals[monthIndex] = expense.total
+        }
+        totals
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = List(12) { 0.0 }
+    )
+
     init {
         viewModelScope.launch {
             expenseDatabase.getAllExpenses().collectLatest { expenses ->
