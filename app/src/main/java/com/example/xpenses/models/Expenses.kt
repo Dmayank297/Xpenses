@@ -9,7 +9,8 @@ enum class TransactionType {
 
 data class Category(
     val name: String,
-    val icon: Int
+    val icon: Int,
+    val colorResId: Int? = null
 )
 
 @Entity(tableName = "expenses")

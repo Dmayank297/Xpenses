@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
+import com.example.xpenses.models.CategoryExpense
 import com.example.xpenses.models.DailyExpense
 import com.example.xpenses.models.Expenses
 import com.example.xpenses.models.MonthlyExpense
@@ -36,6 +37,9 @@ interface ExpensesDao {
 
     @Query("SELECT strftime('%m', date) as month, COALESCE(SUM(amount), 0.0) as total FROM expenses GROUP BY month")
     fun getMonthlyExpenses(): Flow<List<MonthlyExpense>>
+
+    @Query("SELECT SUBSTR(category, 1, INSTR(category, '|') - 1) AS categoryName, COALESCE(SUM(amount), 0.0) as total FROM expenses GROUP BY SUBSTR(category, 1, INSTR(category, '|') - 1)")
+    fun getExpensesByCategory(): Flow<List<CategoryExpense>>
 
     @Insert
     suspend fun insertExpense(expense: Expenses)
