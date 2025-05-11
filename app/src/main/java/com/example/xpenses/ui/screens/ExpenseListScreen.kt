@@ -27,8 +27,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.xpenses.models.Expenses
 import com.example.xpenses.models.TransactionType
 import com.example.xpenses.R
+import com.example.xpenses.models.Categories
 import com.example.xpenses.models.Category
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -171,12 +175,9 @@ fun AddExpenseForm(
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
     var typeExpanded by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf<TransactionType?>(null) }
+    val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-    val categories = listOf(
-        Category("Food", android.R.drawable.ic_menu_myplaces),
-        Category("Travel", android.R.drawable.ic_menu_directions),
-        Category("Shopping", android.R.drawable.ic_menu_slideshow)
-    )
+    val categories = Categories.allCategories
 
     Column(
         modifier = Modifier
@@ -321,7 +322,7 @@ fun AddExpenseForm(
                             amount = amount.toDoubleOrNull() ?: 0.0,
                             category = selectedCategory!!,
                             type = selectedType!!,
-                            date = "2025-05-08"
+                            date = currentDate
                         )
                         onAddExpense(expense)
                     }
@@ -339,17 +340,3 @@ fun AddExpenseForm(
     }
 }
 
-@Preview
-@Composable
-private fun Preview() {
-    ExpensesList(
-        Expenses(
-            name = "Grocies",
-            amount = 240.00,
-            date = "2025-23-4",
-            category = Category("Groceries", R.drawable.groceries),
-            type = TransactionType.DEBIT
-
-        )
-    )
-}

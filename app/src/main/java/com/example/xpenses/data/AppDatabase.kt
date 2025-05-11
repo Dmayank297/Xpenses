@@ -10,5 +10,4 @@ import com.example.xpenses.models.Expenses
 @TypeConverters(Converters::class)
 abstract class AppDatabase(): RoomDatabase() {
     abstract fun expensesDao(): ExpensesDao
-
 }

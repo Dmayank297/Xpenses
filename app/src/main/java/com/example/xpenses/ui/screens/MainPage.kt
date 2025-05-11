@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,8 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -24,10 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,12 +43,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.xpenses.R
 import com.example.xpenses.Screen
 import com.example.xpenses.bottomNavItems
+import com.example.xpenses.models.Categories
 import com.example.xpenses.models.TransactionType
-import com.github.mikephil.charting.charts.PieChart
-import com.github.mikephil.charting.data.PieData
-import com.github.mikephil.charting.data.PieDataSet
-import com.github.mikephil.charting.data.PieEntry
-import com.github.mikephil.charting.formatter.PercentFormatter
+import com.github.mikephil.charting.charts.BarChart
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.BarData
+import com.github.mikephil.charting.data.BarDataSet
+import com.github.mikephil.charting.data.BarEntry
+import com.github.mikephil.charting.formatter.ValueFormatter
 
 
 @Composable
@@ -88,7 +90,8 @@ fun MainPage(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     HeaderSection()
@@ -107,7 +110,7 @@ fun MainPage(
                     modifier = Modifier.padding(innerPadding)
                 )
             }
-            Screen.BottomNavScreen.Profile -> { ProfileScreen() }
+            Screen.BottomNavScreen.Profile -> { ProfileScreen(modifier = Modifier.padding(innerPadding)) }
         }
     }
 }
@@ -182,7 +185,7 @@ fun CreditCardSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "TOTAL EXPENDITURE",
+                    text = "TOTAL TRANSACTION",
                     fontSize = 14.sp,
                     color = Color.White.copy(alpha = 0.7f)
                 )
@@ -253,20 +256,18 @@ fun CreditCardSection(
 fun AnalyticsSection(
     viewModel: MainPageViewModel = hiltViewModel()
 ) {
-    var isDailyView by remember { mutableStateOf(true) }
-    val dailyExpenses = viewModel.dailyExpenses.collectAsState().value
-    val monthlyExpenses = viewModel.monthlyExpenses.collectAsState().value
-    val data = if (isDailyView) dailyExpenses else monthlyExpenses
-    val labels = if (isDailyView) {
-        listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
-    } else {
-        listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    val expensesByCategory = viewModel.expensesByCategory.collectAsState().value
+    val context = LocalContext.current
+    val categories = Categories.allCategories
+    val labels = categories.map { it.name }
+    val data = categories.map { category ->
+        expensesByCategory.find { it.categoryName == category.name }?.total ?: 0.0
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(ContextCompat.getColor(LocalContext.current, R.color.card_background)))
+        colors = CardDefaults.cardColors(containerColor = Color(ContextCompat.getColor(context, R.color.card_background)))
     ) {
         Column(
             modifier = Modifier
@@ -285,67 +286,47 @@ fun AnalyticsSection(
                     Icon(
                         painter = painterResource(android.R.drawable.ic_menu_info_details),
                         contentDescription = null,
-                        tint = Color(ContextCompat.getColor(LocalContext.current, R.color.accent_orange)),
+                        tint = Color(ContextCompat.getColor(context, R.color.accent_orange)),
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
                         text = "Analytics",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(ContextCompat.getColor(LocalContext.current, R.color.text_black))
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = if (isDailyView) "DAILY" else "MONTHLY",
-                        fontSize = 12.sp,
-                        color = Color(ContextCompat.getColor(LocalContext.current, R.color.text_black)),
-                        modifier = Modifier.clickable { isDailyView = !isDailyView }
-                    )
-                    Icon(
-                        painter = painterResource(android.R.drawable.ic_menu_more),
-                        contentDescription = null,
-                        tint = Color(ContextCompat.getColor(LocalContext.current, R.color.text_black)),
-                        modifier = Modifier.size(16.dp)
+                        color = Color(ContextCompat.getColor(context, R.color.text_black))
                     )
                 }
             }
-            DonutChart(
-                data = data,
-                labels = labels,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .padding(vertical = 16.dp)
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                labels.forEachIndexed { index, label ->
+            if (data.all { it == 0.0 }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                        .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = label,
-                        fontSize = 12.sp,
-                        color = if (isDailyView && label == "Wed") {
-                            Color(ContextCompat.getColor(LocalContext.current, R.color.text_black))
-                        } else {
-                            Color(ContextCompat.getColor(LocalContext.current, R.color.text_gray))
-                        },
-                        fontWeight = if (isDailyView && label == "Wed") FontWeight.Bold else FontWeight.Normal
+                        text = "No expenses",
+                        fontSize = 14.sp,
+                        color = Color(ContextCompat.getColor(context, R.color.text_gray))
                     )
                 }
+            } else {
+                BarChart(
+                    data = data,
+                    labels = labels,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                        .padding(vertical = 16.dp)
+                )
             }
         }
     }
 }
 
 @Composable
-fun DonutChart(
+fun BarChart(
     data: List<Double>,
     labels: List<String>,
     modifier: Modifier = Modifier
@@ -354,47 +335,69 @@ fun DonutChart(
     AndroidView(
         modifier = modifier.background(Color(ContextCompat.getColor(context, R.color.chart_background))),
         factory = { ctx ->
-            PieChart(ctx).apply {
-                setUsePercentValues(true)
+            BarChart(ctx).apply {
                 description.isEnabled = false
-                isDrawHoleEnabled = true
-                holeRadius = 50f
-                transparentCircleRadius = 55f
-                setHoleColor(ContextCompat.getColor(ctx, R.color.chart_hole))
+                setDrawGridBackground(false)
+                setDrawBorders(false)
+
+                // X-axis configuration
+                xAxis.apply {
+                    position = XAxis.XAxisPosition.BOTTOM
+                    setDrawGridLines(false)
+                    textColor = ContextCompat.getColor(ctx, R.color.text_black)
+                    textSize = 10f
+                    granularity = 1f
+                    labelCount = labels.size
+                    valueFormatter = object : ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String {
+                            return labels.getOrElse(value.toInt()) { "" }.take(3)
+                        }
+                    }
+                }
+
+                // Y-axis configuration
+                axisLeft.apply {
+                    setDrawGridLines(true)
+                    textColor = ContextCompat.getColor(ctx, R.color.text_black)
+                    textSize = 10f
+                    axisMinimum = 0f
+                    valueFormatter = object : ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String {
+                            return "$${String.format("%.0f", value)}"
+                        }
+                    }
+                }
+                axisRight.isEnabled = false
+
+                // Legend
                 legend.isEnabled = false
-                setEntryLabelColor(ContextCompat.getColor(ctx, R.color.chart_label))
-                setEntryLabelTextSize(12f)
-                setDrawEntryLabels(false) // Labels inside segments off for cleaner look
             }
         },
         update = { chart ->
             val entries = data.mapIndexed { index, value ->
-                PieEntry(value.toFloat(), labels.getOrElse(index) { "" })
-            }.filter { it.value > 0 } // Exclude zero values for cleaner chart
-
-            val dataSet = PieDataSet(entries, "Expenses").apply {
-                colors = listOf(
-                    ContextCompat.getColor(context, R.color.chart_green),
-                    ContextCompat.getColor(context, R.color.chart_orange),
-                    ContextCompat.getColor(context, R.color.chart_tomato),
-                    ContextCompat.getColor(context, R.color.chart_steel_blue),
-                    ContextCompat.getColor(context, R.color.chart_gold),
-                    ContextCompat.getColor(context, R.color.chart_slate_blue),
-                    ContextCompat.getColor(context, R.color.chart_orange_red),
-                    ContextCompat.getColor(context, R.color.chart_light_sea_green),
-                    ContextCompat.getColor(context, R.color.chart_dark_orchid),
-                    ContextCompat.getColor(context, R.color.chart_forest_green),
-                    ContextCompat.getColor(context, R.color.chart_crimson),
-                    ContextCompat.getColor(context, R.color.chart_dark_turquoise)
-                )
-                valueTextSize = 12f
-                valueTextColor = ContextCompat.getColor(context, R.color.chart_value_text)
-                valueFormatter = PercentFormatter(chart)
-                sliceSpace = 2f
+                BarEntry(index.toFloat(), value.toFloat())
             }
 
-            val pieData = PieData(dataSet)
-            chart.data = pieData
+            val dataSet = BarDataSet(entries, "Expenses").apply {
+                colors = Categories.allCategories.map { category ->
+                    ContextCompat.getColor(context, category.colorResId ?: R.color.chart_dark_orchid)
+                }
+                valueTextSize = 10f
+                valueTextColor = ContextCompat.getColor(context, R.color.text_black)
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return if (value > 0) "$${String.format("%.0f", value)}" else ""
+                    }
+                }
+            }
+
+            val barData = BarData(dataSet).apply {
+                barWidth = 0.1f // Adjust bar width
+                setValueTextSize(10f)
+            }
+
+            chart.data = barData
+            chart.setFitBars(true)
             chart.animateY(1000)
             chart.invalidate()
         }
@@ -511,6 +514,8 @@ fun RecentActivitySection(
             }
         }
     }
+    Spacer(modifier = Modifier.height(8.dp))
+
 }
 
 @Composable
@@ -524,7 +529,8 @@ fun BottomAppBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onItemClick() },
+            .clickable { onItemClick() }
+            .padding(vertical = 20.dp), // Internal padding for better spacing
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -534,9 +540,10 @@ fun BottomAppBar(
             modifier = Modifier.size(24.dp),
             tint = Color.Unspecified
         )
-        Text(screen.bTitle,
-            color = Color.Black
+        Text(
+            text = screen.bTitle,
+            color = Color.Black,
+            fontSize = 12.sp
         )
     }
 }
-

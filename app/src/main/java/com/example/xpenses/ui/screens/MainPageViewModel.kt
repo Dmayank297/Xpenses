@@ -1,13 +1,14 @@
 package com.example.xpenses.ui.screens
 
+import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.viewModelScope
 import com.example.xpenses.Screen
 import com.example.xpenses.XpensesViewModel
 import com.example.xpenses.data.ExpensesDao
+import com.example.xpenses.models.CategoryExpense
 import com.example.xpenses.models.Expenses
-import com.example.xpenses.models.TransactionType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -85,6 +86,12 @@ class MainPageViewModel @Inject constructor(
         initialValue = List(12) { 0.0 }
     )
 
+    val expensesByCategory: StateFlow<List<CategoryExpense>> = expenseDatabase.getExpensesByCategory().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     init {
         viewModelScope.launch {
             expenseDatabase.getAllExpenses().collectLatest { expenses ->
@@ -94,6 +101,14 @@ class MainPageViewModel @Inject constructor(
         viewModelScope.launch {
             expenseDatabase.getRecentExpenses().collectLatest { recent ->
                 _recentExpenses.value = recent
+            }
+        }
+        viewModelScope.launch {
+            expenseDatabase.getExpensesByCategory().collectLatest { expenses ->
+                Log.d("MainPageViewModel", "Expenses by category fetched: $expenses")
+                expensesByCategory.collect { categoryExpenses ->
+                    Log.d("MainPageViewModel", "Expenses by category StateFlow: $categoryExpenses")
+                }
             }
         }
     }

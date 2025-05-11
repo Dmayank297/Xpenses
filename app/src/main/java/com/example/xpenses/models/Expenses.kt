@@ -13,6 +13,7 @@ data class Category(
     val colorResId: Int? = null
 )
 
+
 @Entity(tableName = "expenses")
 data class Expenses(
     @PrimaryKey(autoGenerate = true)
